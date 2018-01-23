@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<style>
+		body {
+		  margin:0; padding: 0;
+		  font: 10px sans-serif;
+		  background-color: #ffffff
+		}
+
+		.bigfont{
+		  font: 13px sans-serif;
+
+
+		}
+
+		
+		
+		#share{
+			display:none;
+			float:right;
+			font-size:14px;
+			line-height:170%
+		}
+		.symbol{
+			display:inline!important;
+			float:right
+		}
+		.wrapper{
+			position:absolute;
+			top:150px;
+			left:300px;
+			bottom:300px;
+			width:800px;
+			height:600px;
+			border-radius:4px
+		}
+		.timeline-wrapper{
+			position:absolute;
+			top:500px;
+			left:10px;
+			right:100px;
+			height:30px;
+			background:#fff;
+			transition:1s ease all;
+			border-radius:4px;
+			box-shadow:0 1px 5px rgba(0,0,0,.65)
+		}
+		.heatmap-timeline{
+			position:absolute;top:0;
+			right:15px;
+			left:80px;
+			height:100%
+		}
+		.heatmap-timeline .line{
+			position:absolute;
+			left:0;
+			right:0;
+			top:15px;
+			height:2px;
+			background:#d7d7d7
+		}
+		.heatmap-timeline .time-point.active{
+			background:#000
+		}
+		.heatmap-timeline .time-point{
+			position:absolute;
+			background:#fff;
+			border:2px solid #272727;
+			width:8px;height:8px;
+			border-radius:100%;
+			cursor:pointer;
+			top:15px;
+			transform:translateX(-50%) translateY(-50%)
+		}
+		.heatmap-timeline .time-point:hover{
+			box-shadow:0 0 5px black
+		}
+		.timeline-wrapper button{
+			position:absolute;
+			outline:none;
+			color:#000;
+			background:#f2f2f2;
+			width:65px;
+			height:100%;
+			cursor:pointer;
+			border:none;
+			text-transform:uppercase;
+			border-top-left-radius:3px;
+			border-bottom-left-radius:3px
+		}
+		.heatmap-timeline .time-point.active{
+			background:#000
+		}
+		
+		body{
+		}
+	</style>
+</head>
+
+<body>
+<div class="wrapper" >
+	
+	<div class="heatmap" style="position: relative;">
+	
+	</div>
+	<div id="heatmapContainer">
+	
+
+    </div>
+	<div class="timeline-wrapper">
+	</div>
+</div>
+
+<script src="data1.js"></script>
+<script src="disdata1.js"></script>
+<script src="disdataCM1.js"></script>
+
+<script src="dataTencent.js"></script>
+<script src="disdata2.js"></script>
+<script src="disdataCM2.js"></script>
+
+
+
+<script src="datawangyi.js"></script>
+<script src="disdata5.js"></script>
+<script src="disdataCM4.js"></script>
+
+<script src="d3.js"></script>
+<script src="heatmap3.js"></script>
+<script type="text/javascript">
+window.onload=function(){
+	function generateRandomData(len){
+		var points=[];
+		var max=0;
+		var min =10;
+		var width=840;
+		var height=400;
+		while(len--){
+			var val=Math.floor(Math.random()*100);
+			max=Math.max(max,val);
+			min=Math.min(min,val);
+			var point={
+				x:Math.floor(Math.random()*width),y:Math.floor(Math.random()*height),value:val
+			};
+			points.push(point);
+		}
+		var data={max:max,data:points};return data;
+	}
+	
+	function generateData(dataset){
+		 var max = 0;
+         var min = 0;
+		 var points =[];
+		 
+		dataset.forEach(function(node,i){
+		max = Math.max(max,node.value);
+		min = Math.min(min,node.value);
+		points.push({
+			x: node.x*20,
+            y: node.y*10,
+			value: node.value,
+            radius: node.radius*5
+		});
+		});
+		return {max:max,min:min,data:points}
+	};
+	function generateData2(dataset){
+		 var max = 0;
+         var min = 0;
+		 var points =[];
+		 
+		dataset.forEach(function(node,i){
+		max = Math.max(max,node.value);
+		min = Math.min(min,node.value);
+		points.push({
+			x: node.x*20,
+            y: node.y*30,
+			value: node.value,
+            radius: node.radius*5
+		});
+		});
+		return {max:max,min:min,data:points}
+	};
+	function $(selector){return document.querySelectorAll(selector);}
+	function AnimationPlayer(options){
+		this.heatmap=options.heatmap;
+		this.data=options.data;
+		this.disdataCM = options.disdataCM;
+		this.disdata=options.disdata;
+		this.interval=null;
+		this.animationSpeed=options.animationSpeed||300;
+		this.wrapperEl=options.wrapperEl;
+		this.isPlaying=false;
+		this.init();
+	};
+	AnimationPlayer.prototype={
+		init:function(){
+			var dataLen=this.data.length;
+			this.wrapperEl.innerHTML='';
+			var playButton=this.playButton=document.createElement('button');
+			playButton.onclick=function(){
+				if(this.isPlaying){
+					this.stop();
+				}
+				else{
+					this.play();
+				}
+				this.isPlaying=!this.isPlaying;
+			}.bind(this);
+			playButton.innerText='play';
+			
+			this.wrapperEl.appendChild(playButton);
+			
+			var events=document.createElement('div');
+			events.className='heatmap-timeline';
+			events.innerHTML='<div class="line"></div>';
+			for(var i=0;i<dataLen;i++){
+			
+				var xOffset=100/(dataLen-1)*i;
+				
+				var ev=document.createElement('div');
+				ev.className='time-point';
+				ev.style.left=xOffset+'%';
+				
+				ev.onclick=(function(i){
+					return function(){
+						this.isPlaying=false;
+						this.stop();
+						this.setFrame(i);
+					}.bind(this);
+				}.bind(this))(i);
+				
+				events.appendChild(ev);
+			}
+			this.wrapperEl.appendChild(events);
+			this.setFrame(0);
+		},
+		play:function(){
+			var dataLen=this.data.length;
+			this.playButton.innerText='pause';
+			this.interval=setInterval(function(){
+				this.setFrame(++this.currentFrame%dataLen);
+			}.bind(this),this.animationSpeed);
+		},
+		stop:function(){
+			clearInterval(this.interval);
+			this.playButton.innerText='play';
+		},
+		setFrame:function(frame){
+			this.currentFrame=frame;
+			
+			var snapshotdis=this.disdata[frame];
+			var snapshotdisCM=this.disdataCM[frame];
+			//显示标题和词频
+			d3.select("svg").remove();
+			d3.select("svg").remove();
+			 d3.select("body")
+				.append("svg")
+				.attr("width","1500") 
+				.attr("height","650")
+				.attr("style","position: absolute;")
+				.append("g")
+				.attr("transform","translate(300,150)")
+				.selectAll("a")
+				.data(snapshotdis)
+				.enter()
+				.append("a")
+				.attr("href","http://news.163.com/17/0324/15/CGA6V5KL0001875P.html#f=post1603_tab_news")
+				.append("text")
+				.attr("y",function(d,i){
+				return 40*i;
+			   })
+				.attr("transform", "translate(-6,15.333333333333334)")
+				.attr("class","yLabel axis")
+				.attr("x",0)
+				.attr("style","text-anchor: end;")
+				
+				.text(function(d) {
+					return d;
+				})
+				;
+			d3.select("body")
+				.append("svg")
+				.attr("width","1500") 
+				.attr("height","140")
+				.attr("style","position: absolute;")
+				.append("g")
+				.attr("transform","translate(300,150)")
+				.selectAll("text")
+				.data(snapshotdisCM)
+				.enter()
+				.append("text")
+				.attr("y",function(d,j){
+				return 20*j;
+			   })
+				.attr("transform", "rotate(-90) translate(10, 11)")
+				.attr("class","xLabel axis")
+				.attr("x",0)
+				.text(function(d) {
+					return d;
+				})
+				.attr("style","text-anchor: start;")
+				;
+
+			
+			
+			
+			var snapshot=this.data[frame];
+			this.heatmap.setData(snapshot);
+			var timePoints=$('.heatmap-timeline .time-point');
+			for(var i=0;i<timePoints.length;i++){
+				timePoints[i].classList.remove('active');
+			}
+			timePoints[frame].classList.add('active');
+		},
+		setAnimationData:function(data){
+			this.isPlaying=false;
+			this.stop();
+			this.data=data;
+			this.init();
+		},
+		setAnimationSpeed:function(speed){
+			this.isPlaying=false;
+			this.stop();
+			this.animationSpeed=speed;
+		}
+	};
+	var heatmapInstance=h337.create({
+		container:document.getElementById('heatmapContainer'),
+		gradient: {
+    // enter n keys between 0 and 1 here
+    // for gradient color customization
+    '.5': 'green',
+    '.8': 'pink',
+    '.95': 'white'
+  }
+  
+		
+		
+		/*backgroundColor: 'rgba(0,0,0,.95)',
+          blur: .4,
+          maxOpacity: .9,
+		  minOpacity: .3,
+		  gradient: {
+    // enter n keys between 0 and 1 here
+    // for gradient color customization
+    '.05': 'blue',
+    '.15': 'red',
+	'.4': "#fed976",
+    '.55': 'white'
+  }*/
+	});
+	
+	
+	var animationData=[];
+	animationData.push(generateData(data1));
+	animationData.push(generateData(data2));
+
+	animationData.push(generateData2(data4));
+	
+	var displayData=[];
+	displayData.push(disdata1);
+	displayData.push(disdata2);
+
+	displayData.push(disdata4);
+	
+	var displayDataCM=[];
+	displayDataCM.push(disdataCM1);
+	displayDataCM.push(disdataCM2);
+
+	displayDataCM.push(disdataCM4);
+	
+	var player=new AnimationPlayer({
+		heatmap:heatmapInstance,
+		wrapperEl:document.querySelector('.timeline-wrapper'),
+		data:animationData,
+		disdata:displayData,
+		disdataCM:displayDataCM,
+		animationSpeed:500
+		
+	});
+	player;
+	
+
+};
+</script>
+
+
+
+
+</body>
+</html>
